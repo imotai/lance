@@ -5,80 +5,14 @@ use std::collections::HashMap;
 
 use arrow_schema::DataType;
 use async_recursion::async_recursion;
-use lance_arrow::bfloat16::ARROW_EXT_NAME_KEY;
 use lance_arrow::DataTypeExt;
-use lance_core::datatypes::{Dictionary, Encoding, Field, LogicalType, Schema};
+use lance_core::datatypes::{Field, Schema};
 use lance_core::{Error, Result};
 use lance_io::traits::Reader;
 use lance_io::utils::{read_binary_array, read_fixed_stride_array};
 use snafu::{location, Location};
 
 use crate::format::pb;
-
-impl From<&pb::Field> for Field {
-    fn from(field: &pb::Field) -> Self {
-        let mut lance_metadata: HashMap<String, String> = field
-            .metadata
-            .iter()
-            .map(|(key, value)| {
-                let string_value = String::from_utf8_lossy(value).to_string();
-                (key.clone(), string_value)
-            })
-            .collect();
-        if !field.extension_name.is_empty() {
-            lance_metadata.insert(ARROW_EXT_NAME_KEY.to_string(), field.extension_name.clone());
-        }
-        Self {
-            name: field.name.clone(),
-            id: field.id,
-            parent_id: field.parent_id,
-            logical_type: LogicalType::from(field.logical_type.as_str()),
-            metadata: lance_metadata,
-            encoding: match field.encoding {
-                1 => Some(Encoding::Plain),
-                2 => Some(Encoding::VarBinary),
-                3 => Some(Encoding::Dictionary),
-                4 => Some(Encoding::RLE),
-                _ => None,
-            },
-            nullable: field.nullable,
-            children: vec![],
-            dictionary: field.dictionary.as_ref().map(Dictionary::from),
-        }
-    }
-}
-
-impl From<&Field> for pb::Field {
-    fn from(field: &Field) -> Self {
-        let pb_metadata = field
-            .metadata
-            .clone()
-            .into_iter()
-            .map(|(key, value)| (key, value.into_bytes()))
-            .collect();
-        Self {
-            id: field.id,
-            parent_id: field.parent_id,
-            name: field.name.clone(),
-            logical_type: field.logical_type.to_string(),
-            encoding: match field.encoding {
-                Some(Encoding::Plain) => 1,
-                Some(Encoding::VarBinary) => 2,
-                Some(Encoding::Dictionary) => 3,
-                Some(Encoding::RLE) => 4,
-                _ => 0,
-            },
-            nullable: field.nullable,
-            dictionary: field.dictionary.as_ref().map(pb::Dictionary::from),
-            metadata: pb_metadata,
-            extension_name: field
-                .extension_name()
-                .map(|name| name.to_owned())
-                .unwrap_or_default(),
-            r#type: 0,
-        }
-    }
-}
 
 pub struct Fields(pub Vec<pb::Field>);
 
@@ -158,36 +92,6 @@ impl From<&Schema> for FieldsWithMeta {
             .map(|(key, value)| (key, value.into_bytes()))
             .collect();
         Self { fields, metadata }
-    }
-}
-
-impl From<&pb::Dictionary> for Dictionary {
-    fn from(proto: &pb::Dictionary) -> Self {
-        Self {
-            offset: proto.offset as usize,
-            length: proto.length as usize,
-            values: None,
-        }
-    }
-}
-
-impl From<&Dictionary> for pb::Dictionary {
-    fn from(d: &Dictionary) -> Self {
-        Self {
-            offset: d.offset as i64,
-            length: d.length as i64,
-        }
-    }
-}
-
-impl From<Encoding> for pb::Encoding {
-    fn from(e: Encoding) -> Self {
-        match e {
-            Encoding::Plain => Self::Plain,
-            Encoding::VarBinary => Self::VarBinary,
-            Encoding::Dictionary => Self::Dictionary,
-            Encoding::RLE => Self::Rle,
-        }
     }
 }
 

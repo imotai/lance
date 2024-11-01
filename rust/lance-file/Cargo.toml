@@ -16,6 +16,7 @@ lance-arrow.workspace = true
 lance-core.workspace = true
 lance-encoding.workspace = true
 lance-io.workspace = true
+lance-proto.workspace = true
 arrow-arith.workspace = true
 arrow-array.workspace = true
 arrow-buffer.workspace = true
@@ -48,9 +49,6 @@ rand.workspace = true
 proptest.workspace = true
 pretty_assertions.workspace = true
 test-log.workspace = true
-
-[build-dependencies]
-prost-build.workspace = true
 
 [target.'cfg(target_os = "linux")'.dev-dependencies]
 pprof = { workspace = true }

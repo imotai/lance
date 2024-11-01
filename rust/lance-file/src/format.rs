@@ -1,31 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright The Lance Authors
 
-/// Protobuf definitions for Lance Format
-pub mod pb {
-    #![allow(clippy::all)]
-    #![allow(non_upper_case_globals)]
-    #![allow(non_camel_case_types)]
-    #![allow(non_snake_case)]
-    #![allow(unused)]
-    #![allow(improper_ctypes)]
-    #![allow(clippy::upper_case_acronyms)]
-    #![allow(clippy::use_self)]
-    include!(concat!(env!("OUT_DIR"), "/lance.file.rs"));
-}
-
-/// Protobuf definitions for Lance Format v2
-pub mod pbfile {
-    #![allow(clippy::all)]
-    #![allow(non_upper_case_globals)]
-    #![allow(non_camel_case_types)]
-    #![allow(non_snake_case)]
-    #![allow(unused)]
-    #![allow(improper_ctypes)]
-    #![allow(clippy::upper_case_acronyms)]
-    #![allow(clippy::use_self)]
-    include!(concat!(env!("OUT_DIR"), "/lance.file.v2.rs"));
-}
+pub use lance_proto::pb;
+pub use lance_proto::pbfile;
 
 pub mod metadata;
 
