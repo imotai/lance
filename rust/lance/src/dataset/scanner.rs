@@ -331,8 +331,9 @@ fn escape_column_name(name: &str) -> String {
 
 impl Scanner {
     pub fn new(dataset: Arc<Dataset>) -> Self {
+        // By default, we only scan the local schema
         let projection_plan = ProjectionPlan::new_empty(
-            Arc::new(dataset.schema().clone()),
+            Arc::new(dataset.local_schema().clone()),
             /*load_blobs= */ false,
         );
         Self {
@@ -955,7 +956,7 @@ impl Scanner {
             false,
             false,
         )?;
-        let plan_schema = plan.schema().clone();
+        let plan_schema = plan.schema();
         let count_plan = Arc::new(AggregateExec::try_new(
             AggregateMode::Single,
             PhysicalGroupBy::new_single(Vec::new()),
@@ -1121,6 +1122,23 @@ impl Scanner {
                 location: location!(),
             });
         }
+        if let Some(first_blob_col) = self
+            .projection_plan
+            .physical_schema
+            .fields
+            .iter()
+            .find(|f| !f.is_default_storage())
+        {
+            return Err(Error::NotSupported {
+                source: format!(
+                    "Scanning blob columns such as \"{}\" is not yet supported",
+                    first_blob_col.name
+                )
+                .into(),
+                location: location!(),
+            });
+        }
+
         // Scalar indices are only used when prefiltering
         let use_scalar_index = self.use_scalar_index && (self.prefilter || self.nearest.is_none());
 
@@ -3873,7 +3891,7 @@ mod test {
             let new_not_indexed =
                 arrow_arith::numeric::add(&data["indexed"], &Int32Array::new_scalar(1000)).unwrap();
             let append_data = RecordBatch::try_new(
-                data.schema().clone(),
+                data.schema(),
                 vec![data["vector"].clone(), new_indexed, new_not_indexed],
             )
             .unwrap();

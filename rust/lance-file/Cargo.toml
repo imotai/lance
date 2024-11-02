@@ -56,3 +56,6 @@ pprof = { workspace = true }
 [[bench]]
 name = "reader"
 harness = false
+
+[lints]
+workspace = true
