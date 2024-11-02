@@ -221,6 +221,19 @@ pub struct Field {
         ::prost::alloc::string::String,
         ::prost::alloc::vec::Vec<u8>,
     >,
+    /// / The storage class of the field
+    /// /
+    /// / This determines the rate at which the field is compacted.
+    /// /
+    /// / Currently, there are only two storage classes:
+    /// /
+    /// / "" - The default storage class.
+    /// / "blob" - The field is compacted into fewer rows per fragment.
+    /// /
+    /// / Fields that have non-default storage classes are stored in different
+    /// / datasets (e.g. blob fields are stored in the nested "_blobs" dataset)
+    #[prost(string, tag = "11")]
+    pub storage_class: ::prost::alloc::string::String,
 }
 /// Nested message and enum types in `Field`.
 pub mod field {

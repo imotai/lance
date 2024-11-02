@@ -93,6 +93,7 @@ pub mod pb {
                 nullable: field.nullable,
                 children: vec![],
                 dictionary: field.dictionary.as_ref().map(CoreDictionary::from),
+                storage_class: field.storage_class.parse().unwrap(),
             }
         }
     }
@@ -125,6 +126,7 @@ pub mod pb {
                     .map(|name| name.to_owned())
                     .unwrap_or_default(),
                 r#type: 0,
+                storage_class: field.storage_class().to_string(),
             }
         }
     }

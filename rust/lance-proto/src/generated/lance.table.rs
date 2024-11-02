@@ -119,6 +119,13 @@ pub struct Manifest {
         ::prost::alloc::string::String,
         ::prost::alloc::string::String,
     >,
+    /// The version of the blob dataset associated with this table.  Changes to
+    /// blob fields will modify the blob dataset and update this version in the parent
+    /// table.
+    ///
+    /// If this value is 0 then there are no blob fields.
+    #[prost(uint64, tag = "17")]
+    pub blob_dataset_version: u64,
 }
 /// Nested message and enum types in `Manifest`.
 pub mod manifest {
@@ -534,6 +541,9 @@ pub struct Transaction {
         tags = "100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110"
     )]
     pub operation: ::core::option::Option<transaction::Operation>,
+    /// An operation to apply to the blob dataset
+    #[prost(oneof = "transaction::BlobOperation", tags = "200, 202")]
+    pub blob_operation: ::core::option::Option<transaction::BlobOperation>,
 }
 /// Nested message and enum types in `Transaction`.
 pub mod transaction {
@@ -886,6 +896,15 @@ pub mod transaction {
         Project(Project),
         #[prost(message, tag = "110")]
         UpdateConfig(UpdateConfig),
+    }
+    /// An operation to apply to the blob dataset
+    #[allow(clippy::derive_partial_eq_without_eq)]
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    pub enum BlobOperation {
+        #[prost(message, tag = "200")]
+        BlobAppend(Append),
+        #[prost(message, tag = "202")]
+        BlobOverwrite(Overwrite),
     }
 }
 impl ::prost::Name for Transaction {
