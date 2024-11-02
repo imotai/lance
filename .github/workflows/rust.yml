@@ -66,8 +66,6 @@ jobs:
           workspaces: rust
       - name: Install dependencies
         run: |
-          sudo apt update
-          sudo apt install -y protobuf-compiler libssl-dev
           rustup update ${{ matrix.toolchain }} && rustup default ${{ matrix.toolchain }}
           rustup component add rustfmt
       - name: Run cargo fmt
@@ -111,10 +109,6 @@ jobs:
           # "1" means line tables only, which is useful for panic tracebacks.
           rustflags: "-C debuginfo=1"
           components: "rustfmt,clippy"
-      - name: Install dependencies
-        run: |
-          sudo apt -y -qq update
-          sudo apt install -y protobuf-compiler libssl-dev pkg-config
       - name: Run cargo fmt
         run: cargo fmt --check
         shell: bash
@@ -132,10 +126,6 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: rust
-      - name: Install dependencies
-        run: |
-          sudo apt update
-          sudo apt install -y protobuf-compiler libssl-dev
       - name: Run clippy
         run: cargo clippy --features cli,dynamodb,tensorflow,dynamodb_tests --tests --benches -- -D warnings
       - name: Build benchmarks
