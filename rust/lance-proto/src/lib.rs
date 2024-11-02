@@ -10,7 +10,7 @@
 /// ```
 macro_rules! include_proto {
     ($package: tt) => {
-        include!(concat!(env!("OUT_DIR"), concat!("/", $package, ".rs")));
+        include!(concat!("generated/", $package, ".rs"));
     };
 }
 
@@ -43,6 +43,7 @@ pub mod pb {
             }
         }
     }
+
     impl From<&Dictionary> for CoreDictionary {
         fn from(proto: &Dictionary) -> Self {
             Self {
