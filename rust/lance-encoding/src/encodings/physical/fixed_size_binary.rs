@@ -10,7 +10,7 @@ use lance_core::Result;
 
 use crate::{
     buffer::LanceBuffer,
-    data::{BlockInfo, DataBlock, FixedWidthDataBlock, UsedEncoding, VariableWidthBlock},
+    data::{BlockInfo, DataBlock, FixedWidthDataBlock, VariableWidthBlock},
     decoder::{PageScheduler, PrimitivePageDecoder},
     encoder::{ArrayEncoder, EncodedArray},
     format::ProtobufUtils,
@@ -110,7 +110,6 @@ impl PrimitivePageDecoder for FixedSizeBinaryDecoder {
             num_values: num_rows,
             offsets: LanceBuffer::from(offsets_buffer),
             block_info: BlockInfo::new(),
-            used_encodings: UsedEncoding::new(),
         });
 
         Ok(string_data)
@@ -140,13 +139,11 @@ impl ArrayEncoder for FixedSizeBinaryEncoder {
         buffer_index: &mut u32,
     ) -> Result<EncodedArray> {
         let bytes_data = data.as_variable_width().unwrap();
-
         let fixed_data = DataBlock::FixedWidth(FixedWidthDataBlock {
             bits_per_value: 8 * self.byte_width as u64,
             data: bytes_data.data,
             num_values: bytes_data.num_values,
             block_info: BlockInfo::new(),
-            used_encoding: UsedEncoding::new(),
         });
 
         let encoded_data = self.bytes_encoder.encode(
@@ -318,7 +315,6 @@ mod tests {
                 bits_per_value: self.data_block.bits_per_value,
                 num_values: self.data_block.num_values,
                 block_info: self.data_block.block_info.clone(),
-                used_encoding: self.data_block.used_encoding.clone(),
             }))
         }
     }

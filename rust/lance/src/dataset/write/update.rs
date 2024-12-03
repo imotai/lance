@@ -160,6 +160,19 @@ impl UpdateBuilder {
     // pub fn with_write_params(mut self, params: WriteParams) -> Self { ... }
 
     pub fn build(self) -> Result<UpdateJob> {
+        if self
+            .dataset
+            .schema()
+            .fields
+            .iter()
+            .any(|f| !f.is_default_storage())
+        {
+            return Err(Error::NotSupported {
+                source: "Updating datasets containing non-default storage columns".into(),
+                location: location!(),
+            });
+        }
+
         let mut updates = HashMap::new();
 
         let planner = Planner::new(Arc::new(self.dataset.schema().into()));
@@ -360,7 +373,7 @@ impl UpdateJob {
             None,
         );
 
-        let manifest = commit_transaction(
+        let (manifest, manifest_path) = commit_transaction(
             self.dataset.as_ref(),
             self.dataset.object_store(),
             self.dataset.commit_handler.as_ref(),
@@ -373,6 +386,7 @@ impl UpdateJob {
 
         let mut dataset = self.dataset.as_ref().clone();
         dataset.manifest = Arc::new(manifest);
+        dataset.manifest_file = manifest_path;
 
         Ok(Arc::new(dataset))
     }

@@ -16,7 +16,9 @@ use lance_file::v2::reader::FileReaderOptions;
 use lance_file::v2::{reader::FileReader, writer::FileWriter};
 use lance_index::vector::flat::storage::FlatStorage;
 use lance_index::vector::ivf::storage::IvfModel;
-use lance_index::vector::quantizer::{QuantizationType, QuantizerBuildParams};
+use lance_index::vector::quantizer::{
+    QuantizationMetadata, QuantizationType, QuantizerBuildParams,
+};
 use lance_index::vector::storage::STORAGE_METADATA_KEY;
 use lance_index::vector::v3::shuffler::IvfShufflerReader;
 use lance_index::vector::v3::subindex::SubIndexType;
@@ -241,7 +243,7 @@ impl<S: IvfSubIndex + 'static, Q: Quantization + Clone + 'static> IvfIndexBuilde
 
         info!("Start to train quantizer");
         let start = std::time::Instant::now();
-        let quantizer = Q::build(&training_data, dt, quantizer_params)?;
+        let quantizer = Q::build(&training_data, DistanceType::L2, quantizer_params)?;
         info!(
             "Trained quantizer in {:02} seconds",
             start.elapsed().as_secs_f32()
@@ -391,19 +393,7 @@ impl<S: IvfSubIndex + 'static, Q: Quantization + Clone + 'static> IvfIndexBuilde
             if num_rows == 0 {
                 continue;
             }
-            let mut batch = arrow::compute::concat_batches(&batches[0].schema(), batches.iter())?;
-            if self.distance_type == DistanceType::Cosine {
-                let vectors = batch
-                    .column_by_name(&self.column)
-                    .ok_or(Error::invalid_input(
-                        format!("column {} not found", self.column).as_str(),
-                        location!(),
-                    ))?
-                    .as_fixed_size_list();
-                let vectors = lance_linalg::kernels::normalize_fsl(vectors)?;
-                batch = batch.replace_column_by_name(&self.column, Arc::new(vectors))?;
-            }
-
+            let batch = arrow::compute::concat_batches(&batches[0].schema(), batches.iter())?;
             let sizes = self.build_partition(partition, &batch).await?;
             partition_sizes[partition] = sizes;
             log::info!(
@@ -573,7 +563,13 @@ impl<S: IvfSubIndex + 'static, Q: Quantization + Clone + 'static> IvfIndexBuilde
         storage_writer.add_schema_metadata(IVF_METADATA_KEY, ivf_buffer_pos.to_string());
         // For now, each partition's metadata is just the quantizer,
         // it's all the same for now, so we just take the first one
-        let storage_partition_metadata = vec![quantizer.metadata(None)?.to_string()];
+        let storage_partition_metadata = vec![quantizer
+            .metadata(Some(QuantizationMetadata {
+                codebook_position: Some(0),
+                codebook: None,
+                transposed: true,
+            }))?
+            .to_string()];
         storage_writer.add_schema_metadata(
             STORAGE_METADATA_KEY,
             serde_json::to_string(&storage_partition_metadata)?,
@@ -646,15 +642,13 @@ pub(crate) fn index_type_string(sub_index: SubIndexType, quantizer: Quantization
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashMap, ops::Range, sync::Arc};
-
+    use crate::Dataset;
     use arrow::datatypes::Float32Type;
     use arrow_array::{FixedSizeListArray, RecordBatch, RecordBatchIterator};
     use arrow_schema::{DataType, Field, Schema};
     use lance_arrow::FixedSizeListArrayExt;
     use lance_index::vector::hnsw::builder::HnswBuildParams;
     use lance_index::vector::hnsw::HNSW;
-
     use lance_index::vector::pq::{PQBuildParams, ProductQuantizer};
     use lance_index::vector::sq::builder::SQBuildParams;
     use lance_index::vector::sq::ScalarQuantizer;
@@ -666,9 +660,8 @@ mod tests {
     use lance_linalg::distance::DistanceType;
     use lance_testing::datagen::generate_random_array_with_range;
     use object_store::path::Path;
+    use std::{collections::HashMap, ops::Range, sync::Arc};
     use tempfile::tempdir;
-
-    use crate::Dataset;
 
     const DIM: usize = 32;
 

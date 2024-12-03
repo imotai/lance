@@ -393,6 +393,8 @@ impl ZoneMapsFieldScheduler {
             &FilterExpression::no_filter(),
             Arc::<DecoderPlugins>::default(),
             /*should_validate= */ false,
+            LanceFileVersion::default(),
+            None,
         )
         .await?;
 
@@ -592,6 +594,7 @@ impl ZoneMapsFieldEncoder {
                 cache_bytes_per_column: u64::MAX,
                 max_page_bytes: u64::MAX,
                 keep_original_array: true,
+                buffer_alignment: 8,
             },
         )
         .await?;

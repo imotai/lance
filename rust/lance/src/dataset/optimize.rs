@@ -597,7 +597,7 @@ async fn reserve_fragment_ids(
         None,
     );
 
-    let manifest = commit_transaction(
+    let (manifest, _) = commit_transaction(
         dataset,
         dataset.object_store(),
         dataset.commit_handler.as_ref(),
@@ -704,6 +704,11 @@ async fn rewrite_files(
     if let Some(max_bytes_per_file) = options.max_bytes_per_file {
         params.max_bytes_per_file = max_bytes_per_file;
     }
+
+    if dataset.manifest.uses_move_stable_row_ids() {
+        params.enable_move_stable_row_ids = true;
+    }
+
     let new_fragments = write_fragments_internal(
         Some(dataset.as_ref()),
         dataset.object_store.clone(),
@@ -897,7 +902,7 @@ pub async fn commit_compaction(
         None,
     );
 
-    let manifest = commit_transaction(
+    let (manifest, manifest_path) = commit_transaction(
         dataset,
         dataset.object_store(),
         dataset.commit_handler.as_ref(),
@@ -909,6 +914,7 @@ pub async fn commit_compaction(
     .await?;
 
     dataset.manifest = Arc::new(manifest);
+    dataset.manifest_file = manifest_path;
 
     Ok(metrics)
 }
@@ -1025,8 +1031,8 @@ mod tests {
                 .map(|key| {
                     format!(
                         "{}:{:?}",
-                        RowAddress::new_from_id(*key),
-                        map[key].map(RowAddress::new_from_id)
+                        RowAddress::from(*key),
+                        map[key].map(RowAddress::from)
                     )
                 })
                 .collect::<Vec<_>>()
@@ -1671,8 +1677,6 @@ mod tests {
                 .unwrap()
                 .project(&["i"])
                 .unwrap();
-
-            println!("{}", scanner.explain_plan(true).await.unwrap());
 
             scanner.try_into_batch().await.unwrap()
         }

@@ -12,7 +12,7 @@ use std::sync::Arc;
 
 use arrow::compute::concat_batches;
 use arrow_array::cast::as_primitive_array;
-use arrow_array::{RecordBatch, RecordBatchReader, StructArray, UInt32Array, UInt64Array};
+use arrow_array::{new_null_array, RecordBatch, StructArray, UInt32Array, UInt64Array};
 use arrow_schema::Schema as ArrowSchema;
 use datafusion::logical_expr::Expr;
 use datafusion::scalar::ScalarValue;
@@ -23,6 +23,7 @@ use lance_core::utils::deletion::DeletionVector;
 use lance_core::utils::tokio::get_num_compute_intensive_cpus;
 use lance_core::{datatypes::Schema, Error, Result};
 use lance_core::{ROW_ADDR, ROW_ADDR_FIELD, ROW_ID_FIELD};
+use lance_datafusion::utils::StreamingWriteSource;
 use lance_encoding::decoder::DecoderPlugins;
 use lance_file::reader::{read_batch, FileReader};
 use lance_file::v2::reader::{CachedFileMetadata, FileReaderOptions, ReaderProjection};
@@ -388,6 +389,101 @@ mod v2_adapter {
     }
 }
 
+/// A reader where all rows are null. Used when there are fields that have no
+/// data files in a fragment.
+#[derive(Debug, Clone)]
+struct NullReader {
+    schema: Arc<Schema>,
+    num_rows: u32,
+}
+
+impl NullReader {
+    fn new(schema: Arc<Schema>, num_rows: u32) -> Self {
+        Self { schema, num_rows }
+    }
+
+    fn batch(projection: Arc<ArrowSchema>, num_rows: usize) -> RecordBatch {
+        let columns = projection
+            .fields()
+            .iter()
+            .map(|f| new_null_array(f.data_type(), num_rows))
+            .collect::<Vec<_>>();
+        RecordBatch::try_new(projection, columns).unwrap()
+    }
+}
+
+#[async_trait::async_trait]
+impl GenericFileReader for NullReader {
+    fn read_range_tasks(
+        &self,
+        range: Range<u64>,
+        batch_size: u32,
+        projection: Arc<Schema>,
+    ) -> Result<ReadBatchTaskStream> {
+        let mut remaining_rows = range.end - range.start;
+        let projection: Arc<ArrowSchema> = Arc::new(projection.as_ref().into());
+
+        let task_iter = std::iter::from_fn(move || {
+            if remaining_rows == 0 {
+                return None;
+            }
+
+            let num_rows = remaining_rows.min(batch_size as u64) as usize;
+            remaining_rows -= num_rows as u64;
+            let batch = Self::batch(projection.clone(), num_rows);
+            let task = ReadBatchTask {
+                task: futures::future::ready(Ok(batch)).boxed(),
+                num_rows: num_rows as u32,
+            };
+            Some(task)
+        });
+
+        Ok(futures::stream::iter(task_iter).boxed())
+    }
+
+    fn read_all_tasks(
+        &self,
+        batch_size: u32,
+        projection: Arc<Schema>,
+    ) -> Result<ReadBatchTaskStream> {
+        self.read_range_tasks(0..self.num_rows as u64, batch_size, projection)
+    }
+
+    fn take_all_tasks(
+        &self,
+        indices: &[u32],
+        batch_size: u32,
+        projection: Arc<Schema>,
+    ) -> Result<ReadBatchTaskStream> {
+        let num_rows = indices.len() as u64;
+        self.read_range_tasks(0..num_rows, batch_size, projection)
+    }
+
+    fn projection(&self) -> &Arc<Schema> {
+        &self.schema
+    }
+
+    fn len(&self) -> u32 {
+        self.num_rows
+    }
+
+    fn clone_box(&self) -> Box<dyn GenericFileReader> {
+        Box::new(self.clone())
+    }
+
+    fn is_legacy(&self) -> bool {
+        false
+    }
+
+    fn as_legacy_opt(&self) -> Option<&FileReader> {
+        None
+    }
+
+    fn as_legacy_opt_mut(&mut self) -> Option<&mut FileReader> {
+        None
+    }
+}
+
 #[derive(Debug, Default)]
 pub struct FragReadConfig {
     // Add the row id column
@@ -414,7 +510,7 @@ impl FileFragment {
         Self { dataset, metadata }
     }
 
-    /// Create a new [`FileFragment`] from a [`RecordBatchReader`].
+    /// Create a new [`FileFragment`] from a [`StreamingWriteSource`].
     ///
     /// This method can be used before a `Dataset` is created. For example,
     /// Fragments can be created distributed first, before a central machine to
@@ -423,7 +519,7 @@ impl FileFragment {
     pub async fn create(
         dataset_uri: &str,
         id: usize,
-        reader: impl RecordBatchReader + Send + 'static,
+        source: impl StreamingWriteSource,
         params: Option<WriteParams>,
     ) -> Result<Fragment> {
         let mut builder = FragmentCreateBuilder::new(dataset_uri);
@@ -432,7 +528,22 @@ impl FileFragment {
             builder = builder.write_params(params);
         }
 
-        builder.write(reader, Some(id as u64)).await
+        builder.write(source, Some(id as u64)).await
+    }
+
+    /// Create a list of [`FileFragment`] from a [`StreamingWriteSource`].
+    pub async fn create_fragments(
+        dataset_uri: &str,
+        source: impl StreamingWriteSource,
+        params: Option<WriteParams>,
+    ) -> Result<Vec<Fragment>> {
+        let mut builder = FragmentCreateBuilder::new(dataset_uri);
+
+        if let Some(params) = params.as_ref() {
+            builder = builder.write_params(params);
+        }
+
+        builder.write_fragments(source).await
     }
 
     pub async fn create_from_file(
@@ -713,6 +824,23 @@ impl FileFragment {
             }
         }
 
+        // This should return immediately on modern datasets.
+        let num_rows = self.count_rows().await?;
+
+        // Check if there are any fields that are not in any data files
+        let field_ids_in_files = opened_files
+            .iter()
+            .flat_map(|r| r.projection().fields_pre_order().map(|f| f.id))
+            .filter(|id| *id >= 0)
+            .collect::<HashSet<_>>();
+        let mut missing_fields = projection.field_ids();
+        missing_fields.retain(|f| !field_ids_in_files.contains(f) && *f >= 0);
+        if !missing_fields.is_empty() {
+            let missing_projection = projection.project_by_ids(&missing_fields, true);
+            let null_reader = NullReader::new(Arc::new(missing_projection), num_rows as u32);
+            opened_files.push(Box::new(null_reader));
+        }
+
         Ok(opened_files)
     }
 
@@ -869,24 +997,6 @@ impl FileFragment {
                 "Fragment contains a mix of v1 and v2 data files".to_string(),
                 location!(),
             ));
-        }
-
-        for field in self.schema().fields_pre_order() {
-            if !seen_fields.contains(&field.id) {
-                return Err(Error::corrupt_file(
-                    self.dataset
-                        .data_dir()
-                        .child(self.metadata.files[0].path.as_str()),
-                    format!(
-                        "Field {} is missing in fragment {}\nField: {:#?}\nFragment: {:#?}",
-                        field.id,
-                        self.id(),
-                        field,
-                        self.metadata()
-                    ),
-                    location!(),
-                ));
-            }
         }
 
         for data_file in &self.metadata.files {
@@ -1186,6 +1296,14 @@ impl FileFragment {
             }
             schema = schema.project(&projection)?;
         }
+
+        if schema.fields.iter().any(|f| !f.is_default_storage()) {
+            return Err(Error::NotSupported {
+                source: "adding columns whose value depends on scanning non-default storage".into(),
+                location: location!(),
+            });
+        }
+
         // If there is no projection, we at least need to read the row addresses
         with_row_addr |= schema.fields.is_empty();
 
