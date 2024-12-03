@@ -236,6 +236,12 @@ pub struct IndexMetadata {
     /// / The bitmap is stored as a 32-bit Roaring bitmap.
     #[prost(bytes = "vec", tag = "5")]
     pub fragment_bitmap: ::prost::alloc::vec::Vec<u8>,
+    /// / Details, specific to the index type, which are needed to load / interpret the index
+    /// /
+    /// / Indices should avoid putting large amounts of information in this field, as it will
+    /// / bloat the manifest.
+    #[prost(message, optional, tag = "6")]
+    pub index_details: ::core::option::Option<::prost_types::Any>,
 }
 impl ::prost::Name for IndexMetadata {
     const NAME: &'static str = "IndexMetadata";
@@ -511,6 +517,75 @@ impl ::prost::Name for ExternalFile {
     }
     fn type_url() -> ::prost::alloc::string::String {
         "/lance.table.ExternalFile".into()
+    }
+}
+/// Currently these are all empty messages because all needed details are either hard-coded (e.g.
+/// filenames) or stored in the index itself.  However, we may want to add more details in the
+/// future, in particular we can add details that may be useful for planning queries (e.g. don't
+/// force us to load the index until we know we need it)
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct BTreeIndexDetails {}
+impl ::prost::Name for BTreeIndexDetails {
+    const NAME: &'static str = "BTreeIndexDetails";
+    const PACKAGE: &'static str = "lance.table";
+    fn full_name() -> ::prost::alloc::string::String {
+        "lance.table.BTreeIndexDetails".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/lance.table.BTreeIndexDetails".into()
+    }
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct BitmapIndexDetails {}
+impl ::prost::Name for BitmapIndexDetails {
+    const NAME: &'static str = "BitmapIndexDetails";
+    const PACKAGE: &'static str = "lance.table";
+    fn full_name() -> ::prost::alloc::string::String {
+        "lance.table.BitmapIndexDetails".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/lance.table.BitmapIndexDetails".into()
+    }
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct LabelListIndexDetails {}
+impl ::prost::Name for LabelListIndexDetails {
+    const NAME: &'static str = "LabelListIndexDetails";
+    const PACKAGE: &'static str = "lance.table";
+    fn full_name() -> ::prost::alloc::string::String {
+        "lance.table.LabelListIndexDetails".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/lance.table.LabelListIndexDetails".into()
+    }
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct InvertedIndexDetails {}
+impl ::prost::Name for InvertedIndexDetails {
+    const NAME: &'static str = "InvertedIndexDetails";
+    const PACKAGE: &'static str = "lance.table";
+    fn full_name() -> ::prost::alloc::string::String {
+        "lance.table.InvertedIndexDetails".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/lance.table.InvertedIndexDetails".into()
+    }
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct VectorIndexDetails {}
+impl ::prost::Name for VectorIndexDetails {
+    const NAME: &'static str = "VectorIndexDetails";
+    const PACKAGE: &'static str = "lance.table";
+    fn full_name() -> ::prost::alloc::string::String {
+        "lance.table.VectorIndexDetails".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/lance.table.VectorIndexDetails".into()
     }
 }
 /// A transaction represents the changes to a dataset.

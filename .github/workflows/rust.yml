@@ -35,6 +35,22 @@ jobs:
       - uses: actions/checkout@v4
       - name: Check formatting
         run: cargo fmt -- --check
+
+  vendor:
+    name: Verify Vendored Code
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y libssl-dev
+      - name: Run gen 
+        run: ./rust/lance-proto/regen.sh
+      - name: Verify workspace clean (if this fails, run ./rust/lance-proto/regen.sh and check in results)
+        run: git diff --exit-code
+      
   clippy:
     runs-on: ubuntu-24.04
     steps:

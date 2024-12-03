@@ -2389,6 +2389,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "gen"
+version = "0.1.0"
+dependencies = [
+ "prost-build",
+]
+
+[[package]]
 name = "generic-array"
 version = "0.14.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3144,15 +3151,13 @@ dependencies = [
  "lance-arrow",
  "lance-core",
  "lance-datagen",
+ "lance-proto",
  "lance-testing",
  "lazy_static",
  "log",
  "num-traits",
  "paste",
  "pprof",
- "prost",
- "prost-build",
- "prost-types",
  "rand",
  "rand_xoshiro",
  "rstest",
@@ -3220,6 +3225,7 @@ dependencies = [
  "lance-datagen",
  "lance-encoding",
  "lance-io",
+ "lance-proto",
  "lance-testing",
  "log",
  "num-traits",
@@ -3228,7 +3234,6 @@ dependencies = [
  "pretty_assertions",
  "proptest",
  "prost",
- "prost-build",
  "prost-types",
  "rand",
  "roaring",
@@ -3391,6 +3396,16 @@ dependencies = [
  "rayon",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "lance-proto"
+version = "0.20.0"
+dependencies = [
+ "lance-arrow",
+ "lance-core",
+ "prost",
+ "prost-types",
 ]
 
 [[package]]

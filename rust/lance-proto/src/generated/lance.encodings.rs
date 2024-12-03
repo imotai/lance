@@ -444,6 +444,52 @@ impl ::prost::Name for Binary {
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
+pub struct BinaryMiniBlock {}
+impl ::prost::Name for BinaryMiniBlock {
+    const NAME: &'static str = "BinaryMiniBlock";
+    const PACKAGE: &'static str = "lance.encodings";
+    fn full_name() -> ::prost::alloc::string::String {
+        "lance.encodings.BinaryMiniBlock".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/lance.encodings.BinaryMiniBlock".into()
+    }
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct BinaryBlock {}
+impl ::prost::Name for BinaryBlock {
+    const NAME: &'static str = "BinaryBlock";
+    const PACKAGE: &'static str = "lance.encodings";
+    fn full_name() -> ::prost::alloc::string::String {
+        "lance.encodings.BinaryBlock".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/lance.encodings.BinaryBlock".into()
+    }
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct FsstMiniBlock {
+    #[prost(message, optional, boxed, tag = "1")]
+    pub binary_mini_block: ::core::option::Option<
+        ::prost::alloc::boxed::Box<ArrayEncoding>,
+    >,
+    #[prost(bytes = "vec", tag = "2")]
+    pub symbol_table: ::prost::alloc::vec::Vec<u8>,
+}
+impl ::prost::Name for FsstMiniBlock {
+    const NAME: &'static str = "FsstMiniBlock";
+    const PACKAGE: &'static str = "lance.encodings";
+    fn full_name() -> ::prost::alloc::string::String {
+        "lance.encodings.FsstMiniBlock".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/lance.encodings.FsstMiniBlock".into()
+    }
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Fsst {
     #[prost(message, optional, boxed, tag = "1")]
     pub binary: ::core::option::Option<::prost::alloc::boxed::Box<ArrayEncoding>>,
@@ -523,7 +569,7 @@ impl ::prost::Name for FixedSizeBinary {
 pub struct ArrayEncoding {
     #[prost(
         oneof = "array_encoding::ArrayEncoding",
-        tags = "1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14"
+        tags = "1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17"
     )]
     pub array_encoding: ::core::option::Option<array_encoding::ArrayEncoding>,
 }
@@ -560,6 +606,12 @@ pub mod array_encoding {
         Constant(super::Constant),
         #[prost(message, tag = "14")]
         Bitpack2(super::Bitpack2),
+        #[prost(message, tag = "15")]
+        BinaryMiniBlock(super::BinaryMiniBlock),
+        #[prost(message, tag = "16")]
+        FsstMiniBlock(::prost::alloc::boxed::Box<super::FsstMiniBlock>),
+        #[prost(message, tag = "17")]
+        BinaryBlock(super::BinaryBlock),
     }
 }
 impl ::prost::Name for ArrayEncoding {
@@ -643,6 +695,11 @@ impl ::prost::Name for ColumnEncoding {
         "/lance.encodings.ColumnEncoding".into()
     }
 }
+/// / A layout used for pages where the data is small
+/// /
+/// / In this case we can fit many values into a single disk sector and transposing buffers is
+/// / expensive.  As a result, we do not transpose the buffers but compress the data into small
+/// / chunks (called mini blocks) which are roughly the size of a disk sector.
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct MiniBlockLayout {
@@ -655,6 +712,8 @@ pub struct MiniBlockLayout {
     /// Description of the compression of values
     #[prost(message, optional, tag = "3")]
     pub value_compression: ::core::option::Option<ArrayEncoding>,
+    #[prost(message, optional, tag = "4")]
+    pub dictionary: ::core::option::Option<ArrayEncoding>,
 }
 impl ::prost::Name for MiniBlockLayout {
     const NAME: &'static str = "MiniBlockLayout";
@@ -666,6 +725,38 @@ impl ::prost::Name for MiniBlockLayout {
         "/lance.encodings.MiniBlockLayout".into()
     }
 }
+/// / A layout used for pages where the data is large
+/// /
+/// / In this case the cost of transposing the data is relatively small (compared to the cost of writing the data)
+/// / and so we just zip the buffers together
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct FullZipLayout {
+    /// The number of bits of repetition info (0 if there is no repetition)
+    #[prost(uint32, tag = "1")]
+    pub bits_rep: u32,
+    /// The number of bits of definition info (0 if there is no definition)
+    #[prost(uint32, tag = "2")]
+    pub bits_def: u32,
+    /// Description of the compression of values
+    #[prost(message, optional, tag = "3")]
+    pub value_compression: ::core::option::Option<ArrayEncoding>,
+}
+impl ::prost::Name for FullZipLayout {
+    const NAME: &'static str = "FullZipLayout";
+    const PACKAGE: &'static str = "lance.encodings";
+    fn full_name() -> ::prost::alloc::string::String {
+        "lance.encodings.FullZipLayout".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/lance.encodings.FullZipLayout".into()
+    }
+}
+/// / A layout used for pages where all values are null
+/// /
+/// / In addition, there can be no repetition levels and only a single definition level
+/// /
+/// / If the data is all-null but we have non-trivial rep-def then MiniBlockLayout is used
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct AllNullLayout {}
@@ -682,7 +773,7 @@ impl ::prost::Name for AllNullLayout {
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PageLayout {
-    #[prost(oneof = "page_layout::Layout", tags = "1, 2")]
+    #[prost(oneof = "page_layout::Layout", tags = "1, 2, 3")]
     pub layout: ::core::option::Option<page_layout::Layout>,
 }
 /// Nested message and enum types in `PageLayout`.
@@ -694,6 +785,8 @@ pub mod page_layout {
         MiniBlockLayout(super::MiniBlockLayout),
         #[prost(message, tag = "2")]
         AllNullLayout(super::AllNullLayout),
+        #[prost(message, tag = "3")]
+        FullZipLayout(super::FullZipLayout),
     }
 }
 impl ::prost::Name for PageLayout {

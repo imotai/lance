@@ -21,15 +21,14 @@ fn build_protos(proto_files: &[&str], dirs: &[&str], extern_paths: &[(&str, &str
 
 fn main() -> Result<()> {
     println!("cargo:rerun-if-changed=protos");
-
     // build the encodings proto for extern_paths
     build_protos(&["protos/encodings.proto"], &["protos"], &[])?;
     // build the file proto  for extern_paths
     build_protos(&["protos/file.proto"], &["protos"], &[])?;
+    build_protos(&["protos/file2.proto"], &["protos"], &[])?;
 
     build_protos(
         &[
-            "protos/file2.proto",
             "protos/table.proto",
             "protos/transaction.proto",
             "protos/rowids.proto",

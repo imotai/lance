@@ -3,6 +3,7 @@ members = [
     "java/core/lance-jni",
     "rust/lance",
     "rust/lance-proto",
+    "rust/lance-proto/gen",
     "rust/lance-arrow",
     "rust/lance-core",
     "rust/lance-datagen",

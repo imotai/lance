@@ -18,5 +18,3 @@ prost-types.workspace = true
 lance-core.workspace = true
 lance-arrow.workspace = true
 
-[build-dependencies]
-prost-build.workspace = true
