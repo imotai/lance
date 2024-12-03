@@ -10,14 +10,6 @@
 /// ```
 macro_rules! include_proto {
     ($package: tt) => {
-        #![allow(clippy::all)]
-        #![allow(non_upper_case_globals)]
-        #![allow(non_camel_case_types)]
-        #![allow(non_snake_case)]
-        #![allow(unused)]
-        #![allow(improper_ctypes)]
-        #![allow(clippy::upper_case_acronyms)]
-        #![allow(clippy::use_self)]
         include!(concat!("generated/", $package, ".rs"));
     };
 }
@@ -25,11 +17,26 @@ macro_rules! include_proto {
 /// There some conflicts between encodings.proto and file.proto
 /// So we need to include them separately
 pub mod pb_encodings {
-    // include the package lance.encodings from proto file encodings.proto
+    #![allow(clippy::all)]
+    #![allow(non_upper_case_globals)]
+    #![allow(non_camel_case_types)]
+    #![allow(non_snake_case)]
+    #![allow(unused)]
+    #![allow(improper_ctypes)]
+    #![allow(clippy::upper_case_acronyms)]
+    #![allow(clippy::use_self)]
     include_proto!("lance.encodings");
 }
 
 pub mod pb {
+    #![allow(clippy::all)]
+    #![allow(non_upper_case_globals)]
+    #![allow(non_camel_case_types)]
+    #![allow(non_snake_case)]
+    #![allow(unused)]
+    #![allow(improper_ctypes)]
+    #![allow(clippy::upper_case_acronyms)]
+    #![allow(clippy::use_self)]
     use lance_arrow::bfloat16::ARROW_EXT_NAME_KEY;
     use lance_core::datatypes::{
         Dictionary as CoreDictionary, Encoding as CoreEncoding, Field as CoreField, LogicalType,
@@ -141,6 +148,13 @@ pub mod pb {
 }
 
 pub mod pbfile {
-    // include the package lance.file.v2 from proto file file2.proto
+    #![allow(clippy::all)]
+    #![allow(non_upper_case_globals)]
+    #![allow(non_camel_case_types)]
+    #![allow(non_snake_case)]
+    #![allow(unused)]
+    #![allow(improper_ctypes)]
+    #![allow(clippy::upper_case_acronyms)]
+    #![allow(clippy::use_self)]
     include_proto!("lance.file.v2");
 }
